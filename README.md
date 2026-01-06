@@ -1,91 +1,54 @@
 # POV Rewrite Extension for SillyTavern
 
-Automatically convert character cards from second-person or third-person perspective to first-person perspective using AI.
-
-## Features
-
-- **One-Click Conversion**: Convert entire character cards to first-person perspective with a single button click
-- **AI-Powered**: Uses your configured AI model to intelligently rewrite character descriptions, personalities, and dialogue
-- **Structured Output**: Leverages JSON schema for reliable, structured character card output
-- **Preview Before Apply**: Review changes before applying them to your character
-- **Customizable Prompts**: Modify the conversion prompt to suit your needs
-- **Preserves Metadata**: Keeps character name, tags, and extension data intact
+Convert character cards to first-person perspective using AI.
 
 ## Installation
 
-1. Place the `pov-rewrite` folder in `public/scripts/extensions/third-party/`
-2. Reload SillyTavern
-3. Enable the extension in the Extensions menu
+1. Install: Extensions → Install extension → `https://github.com/spaceman2408/pov-rewrite`
+2. Open any character and find the "💬" button
 
 ## Usage
 
 1. Open a character in edit mode
-2. Click the "eye" icon button (👁️) next to the delete button
-3. Wait for the AI to rewrite the character card
-4. Review the preview (if enabled)
-5. Confirm to apply changes
+2. Click the comments icon (💬) in the character panel
+3. Review the prompt preview
+4. Click "Start Rewrite"
+5. Wait for the AI to process
+6. Preview and apply changes
 
 ## Settings
 
-### Show Rewrite Button in Character Edit
-Toggle the visibility of the rewrite button in the character edit panel.
-
-### Prompt Template
-Customize the prompt sent to the AI for character conversion. Use `{{CHARACTER_JSON}}` as a placeholder for the character data.
-
-### Max Response Tokens
-Set the maximum number of tokens for the AI response. Increase this for longer character cards.
-
-### Show Preview Before Applying
-When enabled, shows a preview dialog with the rewritten character fields before applying changes.
+- **Enable Extension**: Show/hide the rewrite button
+- **Max Response Tokens**: Increase for longer character cards (default: 4000)
+- **Show Preview Before Applying**: Review changes before applying
+- **Prompt Template**: Customize the conversion prompt
+- **Fields to Rewrite**: Select which character fields to convert:
+  - Description
+  - Personality
+  - First Message
+  - Example Messages
+  - Alternate Greetings
 
 ## How It Works
 
-The extension:
-1. Extracts all text fields from the character card
-2. Sends the character data to the AI with a structured prompt
-3. Receives a rewritten character card in JSON format
-4. Updates all character fields to first-person perspective
-5. Preserves non-text metadata (name, tags, extensions)
-
-## Pronouns Used
-
-The AI is instructed to use these first-person pronouns:
-- I, me, my, mine, myself (for the character)
-- We, us, our, ours (if applicable)
-
-## Fields Converted
-
-- Description
-- Personality
-- Scenario
-- First Message
-- Example Messages
-- Alternate Greetings
-- Creator Notes
-- Post-History Instructions
-- System Prompt
-
-## Fields Preserved
-
-- Character Name
-- Tags
-- Extension Data
-- Creator
-- Version Number
+1. Extracts selected text fields from the character card
+2. Sends data to your configured AI model
+3. Receives rewritten fields in JSON format
+4. Updates only the selected fields to first-person perspective
+5. Preserves character name, tags, and other metadata
 
 ## Requirements
 
 - SillyTavern with AI backend configured
-- AI model that supports structured JSON output (recommended: OpenAI, Claude, or similar)
+- AI model that supports JSON output (OpenAI, Claude, etc.)
 
 ## Troubleshooting
 
-**Button not appearing**: Make sure "Show Rewrite Button in Character Edit" is enabled in settings.
+**Button not visible**: Enable "Show Rewrite Button" in extension settings.
 
-**AI errors**: Ensure your AI backend is properly configured and supports JSON schema.
+**AI errors**: Ensure your AI backend is properly configured.
 
-**Poor quality output**: Try adjusting the prompt template or increasing max tokens for longer cards.
+**Poor quality output**: Adjust the prompt template or increase max tokens.
 
 ## License
 
@@ -94,7 +57,3 @@ MIT License
 ## Author
 
 spaceman2408
-
-## Version
-
-1.0.0

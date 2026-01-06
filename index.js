@@ -663,7 +663,6 @@ async function handleAIResponse(response, currentCharacter) {
                     console.log(`[${extensionName}] Using parsed JSON directly`);
                 }
             } catch (e) {
-                console.warn(`[${extensionName}] Response is string but not valid JSON:`, e);
                 // Try to extract JSON from the string directly
                 const jsonMatch = response.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
