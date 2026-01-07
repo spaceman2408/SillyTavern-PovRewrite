@@ -74,8 +74,8 @@ window.povRewriteStartClick = async function(event) {
         // Handle response
         await handleAIResponse(response, character);
         
-        // Close popup on success
-        $('.dialogue_popup_close_button').trigger('click');
+        // Popup will close automatically through the Popup class's built-in cleanup
+        // This ensures proper focus restoration and event handler cleanup
         
     } catch (error) {
         console.error(`[${extensionName}] Error rewriting character:`, error);
@@ -89,12 +89,8 @@ window.povRewriteStartClick = async function(event) {
             if (statusEl) statusEl.innerHTML = '<i class="fa-solid fa-exclamation-circle"></i><span>Error: ' + escapeHtml(error.message) + '</span>';
         }
         
-        // Reset UI on error
-        if (startBtn) startBtn.disabled = false;
-        if (abortBtn) abortBtn.disabled = true;
-        if (loadingEl) loadingEl.classList.add('hidden');
-        if (statusEl) statusEl.classList.remove('hidden');
-        if (payloadContainer) payloadContainer.classList.remove('disabled');
+        // Reset UI state on error
+        window.povRewriteResetUI();
     }
 };
 
@@ -104,12 +100,17 @@ window.povRewriteAbortClick = function(event) {
     
     if (abortController) {
         abortController = null; // Signal that we want to abort
-        toastr.info("Abort signal sent");
+        console.log(`[${extensionName}] Abort signal sent, resetting UI state`);
+        
+        // Reset UI state immediately
+        window.povRewriteResetUI();
         
         const statusEl = document.getElementById('pov-rewrite-status');
         if (statusEl) {
-            statusEl.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i><span>Attempting to abort...</span>';
+            statusEl.innerHTML = '<i class="fa-solid fa-times-circle"></i><span>Rewrite aborted</span>';
         }
+        
+        toastr.info("Rewrite aborted by user");
     }
 };
 
@@ -601,6 +602,94 @@ function buildRewritePrompt(characterData) {
 }
 
 /**
+ * Helper function to sanitize JSON string values
+ * This fixes AI responses that contain improperly escaped characters in JSON strings
+ * including quotes inside dialogue.
+ */
+function sanitizeJsonStringValues(jsonString) {
+    // First, convert smart quotes to regular quotes
+    let result = jsonString
+        .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036]/g, '"')
+        .replace(/[\u2018\u2019\u201A\u201B\u2039\u203A]/g, "'");
+    
+    let i = 0;
+    let finalResult = '';
+    
+    while (i < result.length) {
+        const char = result[i];
+        
+        if (char === '"') {
+            // Start of a string value (could be a key or a value)
+            let str = '"';
+            i++;
+            let inEscape = false;
+            
+            while (i < result.length) {
+                const c = result[i];
+                
+                if (inEscape) {
+                    // After a backslash - keep the escape sequence as-is
+                    str += c;
+                    inEscape = false;
+                    i++;
+                } else if (c === '\\') {
+                    // Escape character
+                    str += c;
+                    inEscape = true;
+                    i++;
+                } else if (c === '"') {
+                    // We found a quote. Is it the end of the string, or dialogue inside?
+                    // Look ahead for structural JSON characters (:, }, or ,)
+                    // If the next significant character is one of those, this is the end quote.
+                    let nextNonSpaceIdx = i + 1;
+                    while (nextNonSpaceIdx < result.length && /\s/.test(result[nextNonSpaceIdx])) {
+                        nextNonSpaceIdx++;
+                    }
+                    
+                    const nextChar = nextNonSpaceIdx < result.length ? result[nextNonSpaceIdx] : '';
+                    
+                    // Valid string terminators in JSON:
+                    // 1. ':' (if this string was a key)
+                    // 2. ',' (if this string was a value followed by another property)
+                    // 3. '}' (if this string was the last value in the object)
+                    // 4. ']' (if in an array - adding for robustness)
+                    if (nextChar === ':' || nextChar === ',' || nextChar === '}' || nextChar === ']') {
+                        // This is a structural quote (end of string)
+                        str += c;
+                        i++;
+                        break;
+                    } else {
+                        // This quote is followed by something else (e.g. text, or another quote)
+                        // It must be part of the content (like dialogue). Escape it.
+                        str += '\\"';
+                        i++;
+                    }
+                } else if (c === '\n') {
+                    str += '\\n';
+                    i++;
+                } else if (c === '\r') {
+                    str += '\\r';
+                    i++;
+                } else if (c === '\t') {
+                    str += '\\t';
+                    i++;
+                } else {
+                    str += c;
+                    i++;
+                }
+            }
+            finalResult += str;
+        } else {
+            // Outside string - just copy
+            finalResult += char;
+            i++;
+        }
+    }
+    
+    return finalResult;
+}
+
+/**
  * Handle AI response and update character
  */
 async function handleAIResponse(response, currentCharacter) {
@@ -647,7 +736,9 @@ async function handleAIResponse(response, currentCharacter) {
                         const jsonMatch = content.match(/\{[\s\S]*\}/);
                         if (jsonMatch) {
                             try {
-                                rewrittenData = JSON.parse(jsonMatch[0]);
+                                // Sanitize JSON string values before parsing
+                                let jsonString = sanitizeJsonStringValues(jsonMatch[0]);
+                                rewrittenData = JSON.parse(jsonString);
                                 console.log(`[${extensionName}] Extracted JSON from content using regex`);
                             } catch (e2) {
                                 console.error(`[${extensionName}] Failed to parse extracted JSON:`, e2);
@@ -667,11 +758,16 @@ async function handleAIResponse(response, currentCharacter) {
                 const jsonMatch = response.match(/\{[\s\S]*\}/);
                 if (jsonMatch) {
                     try {
-                        rewrittenData = JSON.parse(jsonMatch[0]);
+                        // Sanitize JSON string values before parsing
+                        let jsonString = sanitizeJsonStringValues(jsonMatch[0]);
+                        console.log(`[${extensionName}] Sanitized JSON string length:`, jsonString.length);
+                        console.log(`[${extensionName}] Sanitized JSON preview:`, jsonString.substring(0, 300));
+                        rewrittenData = JSON.parse(jsonString);
                         console.log(`[${extensionName}] Extracted JSON from string using regex`);
                     } catch (e2) {
                         console.error(`[${extensionName}] Failed to parse extracted JSON:`, e2);
-                        throw new Error("Could not parse JSON from AI response");
+                        console.error(`[${extensionName}] Problematic JSON string:`, jsonMatch[0].substring(0, 500));
+                        throw new Error("Could not parse JSON from AI response: " + e2.message);
                     }
                 } else {
                     throw new Error("No valid JSON found in AI response");
@@ -718,11 +814,16 @@ async function handleAIResponse(response, currentCharacter) {
                         console.log(`[${extensionName}] Found JSON match, length:`, jsonMatch[0].length);
                         console.log(`[${extensionName}] JSON match preview:`, jsonMatch[0].substring(0, 300));
                         try {
-                            rewrittenData = JSON.parse(jsonMatch[0]);
+                            // Sanitize JSON string values before parsing
+                            let jsonString = sanitizeJsonStringValues(jsonMatch[0]);
+                            console.log(`[${extensionName}] Sanitized JSON length:`, jsonString.length);
+                            console.log(`[${extensionName}] Sanitized JSON preview:`, jsonString.substring(0, 300));
+                            rewrittenData = JSON.parse(jsonString);
                             console.log(`[${extensionName}] ✓ Successfully extracted and parsed JSON from content`);
                         } catch (e2) {
                             console.error(`[${extensionName}] ✗ Failed to parse extracted JSON:`, e2);
-                            throw new Error("Could not parse JSON from AI response");
+                            console.error(`[${extensionName}] Problematic JSON string:`, jsonMatch[0].substring(0, 500));
+                            throw new Error("Could not parse JSON from AI response: " + e2.message);
                         }
                     } else {
                         console.error(`[${extensionName}] ✗ No JSON found in content`);
@@ -797,6 +898,9 @@ async function handleAIResponse(response, currentCharacter) {
     } catch (error) {
         console.error(`[${extensionName}] Error handling AI response:`, error);
         toastr.error("Error: " + error.message);
+        
+        // Reset UI state on error
+        window.povRewriteResetUI();
     }
 }
 
@@ -887,7 +991,7 @@ async function showPreviewDialog(rewrittenData, character) {
     const result = await popup.show();
     console.log(`[${extensionName}] Preview dialog result:`, result);
     
-    // If confirmed, update character and close ALL popups immediately
+    // If confirmed, update character
     if (result === POPUP_RESULT.AFFIRMATIVE) {
         console.log(`[${extensionName}] User confirmed preview, updating character...`);
         
@@ -903,25 +1007,8 @@ async function showPreviewDialog(rewrittenData, character) {
         toastr.success("Character card rewritten to first-person perspective!");
         console.log(`[${extensionName}] Rewrite completed successfully`);
         
-        // Close ALL popups immediately
-        console.log(`[${extensionName}] Force closing all popups immediately...`);
-        
-        // Find and click all close buttons
-        $('.dialogue_popup_close_button').each(function() {
-            $(this).trigger('click');
-            $(this).click();
-        });
-        
-        // Force remove the main rewrite popup immediately
-        $('.pov-rewrite-popup').closest('.dialogue_popup_holder').remove();
-        
-        // Force remove any remaining popup elements
-        $('.dialogue_popup_holder').remove();
-        $('.dialogue_popup').remove();
-        $('[class*="popup"]').filter(function() {
-            return $(this).is(':visible') && $(this).css('position') === 'fixed';
-        }).remove();
-        
+        // Popup will close automatically through the Popup class's built-in cleanup
+        // This ensures proper focus restoration and event handler cleanup
     } else {
         console.log(`[${extensionName}] User cancelled preview`);
         // Reset UI state
