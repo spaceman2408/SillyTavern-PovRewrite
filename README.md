@@ -9,7 +9,7 @@ Convert character cards to first-person perspective using AI.
 
 ## Installation
 
-1. Install: Extensions → Install extension → `https://github.com/spaceman2408/pov-rewrite`
+1. Install: Extensions → Install extension → `https://github.com/spaceman2408/SillyTavern-PovRewrite`
 2. Open any character and find the "💬" button
 
 ## Usage
